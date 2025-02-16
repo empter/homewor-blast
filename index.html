@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        :root {
+            --primary: #2196F3;
+            --corrected: #4CAF50;
+            --uncorrected: #FF9800;
+            --unsubmitted: #9E9E9E;
+        }
+        body {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+        }
+        input {
+            padding: 8px;
+            width: 120px;
+        }
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            background: var(--primary);
+            color: white;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .column {
+            border: 2px solid;
+            padding: 15px;
+            border-radius: 8px;
+            min-height: 300px;
+        }
+        #unsubmitted { border-color: var(--unsubmitted); }
+        #corrected { border-color: var(--corrected); }
+        #uncorrected { border-color: var(--uncorrected); }
+        .student {
+            display: inline-block;
+            padding: 8px 12px;
+            margin: 4px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .student:hover {
+            transform: scale(1.05);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .student.corrected { background: var(--corrected); color: white; }
+        .student.uncorrected { background: var(--uncorrected); color: white; }
+        .summary {
+            margin-top: 30px;
+            padding: 20px;
+            border-top: 2px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <input type="number" id="total" placeholder="输入班级人数" min="1">
+        <button onclick="generateStudents()">生成学号</button>
+        <button onclick="showSummary()">生成报告</button>
+    </div>
+
+    <div class="container">
+        <div class="column" id="unsubmitted">
+            <h3>📭 未交作业</h3>
+            <div id="unsubmittedList"></div>
+        </div>
+        <div class="column" id="corrected">
+            <h3>✅ 已订正</h3>
+            <div id="correctedList"></div>
+        </div>
+        <div class="column" id="uncorrected">
+            <h3>✏️ 未订正</h3>
+            <div id="uncorrectedList"></div>
+        </div>
+    </div>
+
+    <div class="summary" id="summary"></div>
+
+    <script>
+        let students = [];
+
+        function generateStudents() {
+            const total = parseInt(document.getElementById('total').value) || 0;
+            if (total < 1) return alert('请输入有效人数');
+            
+            students = Array.from({length: total}, (_, i) => ({
+                id: i + 1,
+                status: 'unsubmitted'
+            }));
+            
+            renderStudents();
+        }
+
+        function renderStudents() {
+            const containers = {
+                unsubmitted: document.getElementById('unsubmittedList'),
+                corrected: document.getElementById('correctedList'),
+                uncorrected: document.getElementById('uncorrectedList')
+            };
+
+            // 清空容器
+            Object.values(containers).forEach(div => div.innerHTML = '');
+
+            // 分组渲染
+            students.forEach(student => {
+                const div = document.createElement('div');
+                div.className = `student ${student.status}`;
+                div.textContent = student.id;
+                div.onclick = () => changeStatus(student);
+                containers[student.status].appendChild(div);
+            });
+        }
+
+        function changeStatus(student) {
+            const statusOrder = ['unsubmitted', 'corrected', 'uncorrected'];
+            const currentIndex = statusOrder.indexOf(student.status);
+            student.status = statusOrder[(currentIndex + 1) % 3];
+            renderStudents();
+        }
+
+        function showSummary() {
+            const summary = students.reduce((acc, cur) => {
+                acc[cur.status].push(cur.id);
+                return acc;
+            }, {unsubmitted: [], corrected: [], uncorrected: []});
+
+            const html = `
+                <h2>📊 最终统计</h2>
+                <p>✅ 已订正：${summary.corrected.join(', ') || '无'}</p >
+                <p>✏️ 未订正：${summary.uncorrected.join(', ') || '无'}</p >
+                <p>📭 未交：${summary.unsubmitted.join(', ') || '无'}</p >
+            `;
+            document.getElementById('summary').innerHTML = html;
+        }
+    </script>
+</body>
+</html>
