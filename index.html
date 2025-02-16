@@ -1,92 +1,92 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1.0">
     <style>
-        :root {
-            --primary: #2196F3;
-            --corrected: #4CAF50;
-            --uncorrected: #FF9800;
-            --unsubmitted: #9E9E9E;
-        }
         body {
-            max-width: 1000px;
-            margin: 0 auto;
+            max-width: 800px;
+            margin: 20px auto;
+            font-family: Arial, sans-serif;
             padding: 20px;
         }
         .controls {
-            margin: 20px 0;
+            margin-bottom: 20px;
             display: flex;
             gap: 10px;
         }
         input {
             padding: 8px;
-            width: 120px;
+            width: 50%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
         }
         button {
             padding: 8px 16px;
             cursor: pointer;
+            background: #2196F3;
+            text-align: center;
+            font-size: 16px;
+            color: white;
             border: none;
             border-radius: 4px;
-            background: var(--primary);
-            color: white;
         }
         .container {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: 1fr;
             gap: 15px;
             margin-top: 20px;
         }
         .column {
-            border: 2px solid;
+            border: 2px solid #eee;
             padding: 15px;
             border-radius: 8px;
-            min-height: 300px;
+            min-height: 30px;
         }
-        #unsubmitted { border-color: var(--unsubmitted); }
-        #corrected { border-color: var(--corrected); }
-        #uncorrected { border-color: var(--uncorrected); }
+        #unsubmitted { border-color: #666; }
+        #correct { border-color: #4CAF50; }
+        #need-correct { border-color: #FF9800; }
         .student {
             display: inline-block;
             padding: 8px 12px;
             margin: 4px;
-            background: #f0f0f0;
+            background: #f5f5f5;
             border-radius: 4px;
             cursor: pointer;
-            transition: all 0.2s;
-            user-select: none;
+            transition: 0.2s;
         }
         .student:hover {
-            transform: scale(1.05);
+            transform: translateY(-2px);
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        .student.corrected { background: var(--corrected); color: white; }
-        .student.uncorrected { background: var(--uncorrected); color: white; }
+        #correct .student { background: #4CAF50; color: white; }
+        #need-correct .student { background: #FF9800; color: white; }
         .summary {
-            margin-top: 30px;
+            margin-top: 20px;
             padding: 20px;
-            border-top: 2px solid #ddd;
+            background: #f8f9fa;
+            border-radius: 8px;
         }
     </style>
 </head>
 <body>
     <div class="controls">
-        <input type="number" id="total" placeholder="输入班级人数" min="1">
-        <button onclick="generateStudents()">生成学号</button>
-        <button onclick="showSummary()">生成报告</button>
+        <input type="number" id="total" placeholder="班级人数" min="1">
+        <button onclick="init()">生成<br>学号</button>
+        <button onclick="showSummary()">生成<br>报告</button>
     </div>
 
     <div class="container">
         <div class="column" id="unsubmitted">
-            <h3>📭 未交作业</h3>
+            <h3>📭 未交作业（单击全对，双击需订正）</h3>
             <div id="unsubmittedList"></div>
         </div>
-        <div class="column" id="corrected">
-            <h3>✅ 已订正</h3>
-            <div id="correctedList"></div>
+        <div class="column" id="correct">
+            <h3>✅ 全对</h3>
+            <div id="correctList"></div>
         </div>
-        <div class="column" id="uncorrected">
-            <h3>✏️ 未订正</h3>
-            <div id="uncorrectedList"></div>
+        <div class="column" id="need-correct">
+            <h3>✏️ 需订正</h3>
+            <div id="needCorrectList"></div>
         </div>
     </div>
 
@@ -94,8 +94,9 @@
 
     <script>
         let students = [];
+        let clickTimer = null;
 
-        function generateStudents() {
+        function init() {
             const total = parseInt(document.getElementById('total').value) || 0;
             if (total < 1) return alert('请输入有效人数');
             
@@ -104,47 +105,75 @@
                 status: 'unsubmitted'
             }));
             
-            renderStudents();
+            render();
         }
 
-        function renderStudents() {
+        function handleUnsubmittedClick(student, isDoubleClick) {
+            if (clickTimer) clearTimeout(clickTimer);
+            
+            if (isDoubleClick) {
+                student.status = 'need-correct';
+            } else {
+                student.status = 'correct';
+            }
+            
+            render();
+        }
+
+        function handleOtherClick(student) {
+            student.status = 'unsubmitted';
+            render();
+        }
+
+        function render() {
             const containers = {
                 unsubmitted: document.getElementById('unsubmittedList'),
-                corrected: document.getElementById('correctedList'),
-                uncorrected: document.getElementById('uncorrectedList')
+                correct: document.getElementById('correctList'),
+                'need-correct': document.getElementById('needCorrectList')
             };
 
             // 清空容器
             Object.values(containers).forEach(div => div.innerHTML = '');
 
-            // 分组渲染
+            // 重新渲染
             students.forEach(student => {
                 const div = document.createElement('div');
-                div.className = `student ${student.status}`;
+                div.className = 'student';
                 div.textContent = student.id;
-                div.onclick = () => changeStatus(student);
+
+                // 绑定不同事件
+                if (student.status === 'unsubmitted') {
+                    div.onclick = (e) => {
+                        if (clickTimer) {
+                            clearTimeout(clickTimer);
+                            handleUnsubmittedClick(student, true);
+                            clickTimer = null;
+                        } else {
+                            clickTimer = setTimeout(() => {
+                                handleUnsubmittedClick(student, false);
+                                clickTimer = null;
+                            }, 300);
+                        }
+                    };
+                } else {
+                    div.onclick = () => handleOtherClick(student);
+                }
+
                 containers[student.status].appendChild(div);
             });
         }
 
-        function changeStatus(student) {
-            const statusOrder = ['unsubmitted', 'corrected', 'uncorrected'];
-            const currentIndex = statusOrder.indexOf(student.status);
-            student.status = statusOrder[(currentIndex + 1) % 3];
-            renderStudents();
-        }
-
         function showSummary() {
-            const summary = students.reduce((acc, cur) => {
+            const groups = students.reduce((acc, cur) => {
                 acc[cur.status].push(cur.id);
                 return acc;
-            }, {unsubmitted: [], corrected: [], uncorrected: []});
+            }, { unsubmitted: [], correct: [], 'need-correct': [] });
 
             const html = `
-                <h2>📊 最终统计</h2>
-                <p>✅ 已订正：${summary.corrected.join(', ') || '无'}</p >
-                <p>✏️ 未订正：${summary.uncorrected.join(', ') || '无'}</p >
-                <p>📭 未交：${summary.unsubmitted.join(', ') || '无'}</p >
+                <h3>📊 最终统计</h3>
+                <p>📭 未交：${groups.unsubmitted.join(', ') || '无'}</p >
+                <p>✅ 全对：${groups.correct.join(', ') || '无'}</p >
+                <p>✏️ 需订正：${groups['need-correct'].join(', ') || '无'}</p >
             `;
             document.getElementById('summary').innerHTML = html;
         }
